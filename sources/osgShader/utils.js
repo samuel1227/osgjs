@@ -30,7 +30,7 @@ Nodes are automatically created when parsing a glsl file
 * /!\ hack: you can declare functions as defines too but it will only perform name checking
             No type checking/downcasting and no in/out validation
 
-* /!\ hack: Optional argument are handled with define that have the structure : OPT_ARG_myOptVar
+* /!\ hack: Optional argument are handled with define that have the structure : OPT_ARG_DECLARATION_myOptVar
             The variable will be named myOptVar in that example
             No type checking/downcasting and no in/out validation for the optional variable
 
@@ -63,7 +63,7 @@ this.getNode('MyFunc')
 
 ---- glsl ----
 #pragma DECLARE_FUNCTION NODE_NAME:myFuncTiti result:resOut myVarIn:totoIn optVariable:optVar DERIVATIVES:enable
-vec3 myFunc(const in float myVarIn, out float myVarOut, OPT_ARG_optVariable) {
+vec3 myFunc(const in float myVarIn, out float myVarOut OPT_ARG_DECLARATION_optVariable) {
     // do stuffs
 }
 
@@ -232,8 +232,8 @@ var extractSignature = function(option, signature) {
     postSignature = postSignature.replace(/[\r\n|\r|\n]/g, '');
 
     // array of arguments
-    var argumentList = postSignature.split(/OPT_ARG_|,/);
-    var hasOptionalArgs = postSignature.indexOf('OPT_ARG_') !== -1;
+    var argumentList = postSignature.split(/OPT_ARG_DECLARATION_|,/);
+    var hasOptionalArgs = postSignature.indexOf('OPT_ARG_DECLARATION_') !== -1;
 
     var inputs = [];
     var orderedArgs = [];
@@ -252,7 +252,8 @@ var extractSignature = function(option, signature) {
             isOutput: isOutput,
             type: splits[nbSplits - 2],
             name: pragmaArgs[glslName] || glslName,
-            optional: hasOptionalArgs && postSignature.indexOf('OPT_ARG_' + glslName) !== -1
+            optional:
+                hasOptionalArgs && postSignature.indexOf('OPT_ARG_DECLARATION_' + glslName) !== -1
         };
 
         orderedArgs.push(res);

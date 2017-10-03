@@ -1,30 +1,47 @@
-#pragma include "tapPCF.glsl"
+#ifdef _OUT_DISTANCE
+#define OPT_ARG_DECLARATION_outDistance ,out float outDistance
+#define OPT_ARG_INSTANCE_outDistance ,outDistance
+#else
+#define OPT_ARG_DECLARATION_outDistance
+#define OPT_ARG_INSTANCE_outDistance
+#endif
 
 #ifdef _ATLAS_SHADOW
-#define OPT_ARG_atlasSize ,const in vec4 atlasSize
+#define OPT_ARG_DECLARATION_atlasSize ,const in vec4 atlasSize
 #else
-#define OPT_ARG_atlasSize
+#define OPT_ARG_DECLARATION_atlasSize
 #endif
 
 #ifdef _NORMAL_OFFSET
-#define OPT_ARG_normalBias ,const in float normalBias
+#define OPT_ARG_DECLARATION_normalBias ,const in float normalBias
 #else
-#define OPT_ARG_normalBias
+#define OPT_ARG_DECLARATION_normalBias
 #endif
+
+#ifdef _JITTER_OFFSET
+#define OPT_ARG_DECLARATION_jitter ,const in float jitter
+#define OPT_ARG_INSTANCE_jitter ,jitter
+#else
+#define OPT_ARG_DECLARATION_jitter
+#define OPT_ARG_INSTANCE_jitter
+#endif
+
+#pragma include "tapPCF.glsl"
 
 #pragma DECLARE_FUNCTION DERIVATIVES:enable
 float shadowReceive(const in bool lighted,
                     const in vec3 normalWorld,
-                    const in vec3 vertexWorld,                    
+                    const in vec3 vertexWorld,
                     const in sampler2D shadowTexture,
                     const in vec4 shadowSize,
                     const in mat4 shadowProjectionMatrix,
                     const in mat4 shadowViewMatrix,
                     const in vec4 shadowDepthRange,
                     const in float shadowBias
-                    OPT_ARG_atlasSize
-                    OPT_ARG_normalBias
-                    OPT_ARG_outDistance) {
+                    OPT_ARG_DECLARATION_atlasSize
+                    OPT_ARG_DECLARATION_normalBias
+                    OPT_ARG_DECLARATION_outDistance
+                    OPT_ARG_DECLARATION_jitter) {
 
     // 0 for early out
     bool earlyOut = false;
@@ -169,12 +186,19 @@ float shadowReceive(const in bool lighted,
         shadowReceiverZ = clamp(shadowReceiverZ, 0.0, 1.0 -depthBias) - depthBias;
 
         // Now computes Shadow
+        float res = getShadowPCF(shadowTexture,
+                                 shadowSize,
+                                 shadowUV,
+                                 shadowReceiverZ,
+                                 shadowBiasPCF,
+                                 clampDimension
+                                 OPT_ARG_INSTANCE_outDistance
+                                 OPT_ARG_INSTANCE_jitter);
 #ifdef _OUT_DISTANCE
-        float res = getShadowPCF(shadowTexture, shadowSize, shadowUV, shadowReceiverZ, shadowBiasPCF, clampDimension, outDistance);
-        if (lighted) shadow = res; 
+        if (lighted) shadow = res;
         outDistance *= shadowDepthRange.z; // world space distance
 #else
-        shadow = getShadowPCF(shadowTexture, shadowSize, shadowUV, shadowReceiverZ, shadowBiasPCF, clampDimension);
+        shadow = res;
 #endif  // _OUT_DISTANCE
     }
 
