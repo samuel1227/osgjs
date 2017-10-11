@@ -282,8 +282,16 @@ utils.createPrototypeObject(
             }
             state.applyAttribute(this._viewport);
 
-            if (this._scissor) {
-                state.applyAttribute(this._scissor);
+            // fragment clipping
+            var scissor;
+            if (this._camera && this._camera.getStateSet()) {
+                scissor = this._camera.getStateSet().getAttribute('Scissor');
+            }
+            if (!scissor) {
+                scissor = this._scissor;
+            }
+            if (scissor) {
+                state.applyAttribute(scissor);
             }
 
             if (this._clearMask !== 0x0) {

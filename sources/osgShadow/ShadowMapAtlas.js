@@ -10,6 +10,8 @@ var Texture = require('osg/Texture');
 var FrameBufferObject = require('osg/FrameBufferObject');
 var Uniform = require('osg/Uniform');
 var Viewport = require('osg/Viewport');
+var StateAttribute = require('osg/StateAttribute');
+var Scissor = require('osg/Scissor');
 
 /**
  *  ShadowMapAtlas provides an implementation of shadow textures.
@@ -20,6 +22,7 @@ var ShadowMapAtlas = function(settings) {
     this._lights = [];
     this._shadowMaps = [];
     this._viewportDimension = [];
+    this._scissors = [];
 
     ShadowTechnique.apply(this, arguments);
     this._shadowSettings = settings;
@@ -58,6 +61,7 @@ var ShadowMapAtlas = function(settings) {
     this._cameraClear.setRenderOrder(Camera.PRE_RENDER, 0);
     this._cameraClear.setClearColor(vec4.fromValues(1.0, 1.0, 1.0, 1.0));
     this._cameraClear.setFrameBufferObject(new FrameBufferObject());
+    this._cameraClear.setClearMask(0x0);
 };
 
 /** @lends ShadowMapAtlas.prototype */
@@ -269,7 +273,6 @@ utils.createPrototypeObject(
                     this._shadowedScene = shadowMap.getShadowedScene(this._shadowedScene);
                 if (this._shadowedScene) shadowMap.setShadowedScene(this._shadowedScene);
                 shadowMap.init(this._texture, i, this._textureUnitBase);
-                shadowMap.getCamera().setClearMask(0x0);
             }
         },
 
@@ -293,20 +296,20 @@ utils.createPrototypeObject(
 
                 if (this._viewportDimension.length <= i) {
                     this._viewportDimension.push(vec4.fromValues(x, y, mapSizeX, mapSizeY));
+
+                    var st = shadowMap.getCamera().getOrCreateStateSet();
+                    var scissor = new Scissor(x, y, mapSizeX, mapSizeY);
+                    this._scissors.push(scissor);
+                    st.setAttributeAndModes(scissor, StateAttribute.ON | StateAttribute.OVERRIDE);
                 } else {
                     vec4.set(this._viewportDimension[i], x, y, mapSizeX, mapSizeY);
+                    this._scissors[i].setScissor(x, y, mapSizeX, mapSizeY);
                 }
 
                 this._texture.setLightShadowMapSize(
                     this._lights[i].getLightNumber(),
                     this._viewportDimension[i]
                 );
-
-                if (this._viewportDimension.length <= i) {
-                    this._viewportDimension.push(vec4.fromValues(x, y, mapSizeX, mapSizeY));
-                } else {
-                    vec4.set(this._viewportDimension[i], x, y, mapSizeX, mapSizeY);
-                }
 
                 shadowMap.dirty();
             }
@@ -345,12 +348,9 @@ utils.createPrototypeObject(
 
         updateShadowTechnique: function(nv) {
             this.updateCameraClear();
+            var fbo = this._cameraClear.getFrameBufferObject();
             for (var i = 0, l = this._shadowMaps.length; i < l; i++) {
-                this._shadowMaps[i].updateShadowTechnique(
-                    nv,
-                    this._viewportDimension[i],
-                    this._cameraClear.getFrameBufferObject()
-                );
+                this._shadowMaps[i].updateShadowTechnique(nv, this._viewportDimension[i], fbo);
             }
         },
 
@@ -408,6 +408,13 @@ utils.createPrototypeObject(
                     var light = shadowMap.getLight();
                     idx = this._lights.indexOf(light);
                     if (idx !== -1) this._lights.splice(idx, 1);
+
+                    if (this._viewportDimension.length > idx) {
+                        this._viewportDimension.splice(idx, 1);
+                    }
+                    if (this._scissors.length > idx) {
+                        this._scissors.splice(idx, 1);
+                    }
 
                     this.recomputeViewports();
                 }
